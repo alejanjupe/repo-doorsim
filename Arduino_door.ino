@@ -4,11 +4,11 @@
 #include <ArduinoJson.h> 
 
 // Configuración de WiFi
-const char* ssid = "Fablab_Torino";
-const char* password = "Fablab.Torino!";
+const char* ssid = "ssid";
+const char* password = "password";
 
 // Configuración de MQTT
-const char* mqtt_server = "172.26.34.222";
+const char* mqtt_server = "IP";
 const char* mqtt_topic_door1 = "Door1_topic";
 const char* mqtt_topic_door2 = "Door2_topic";
 const char* mqtt_topic_door3 = "Door3_topic";
