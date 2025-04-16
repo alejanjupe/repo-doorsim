@@ -3,6 +3,8 @@
 #include <LiquidCrystal.h>
 #include <ArduinoJson.h> 
 
+//hola
+
 // Configuración de WiFi
 const char* ssid = "ssid";
 const char* password = "password";
