@@ -1,19 +1,14 @@
 #include <WiFi.h>
 #include <PubSubClient.h>
-#include <LiquidCrystal.h>
-#include <ArduinoJson.h> 
-
-//hola
+#include <ArduinoJson.h>
 
 // Configuración de WiFi
-const char* ssid = "ssid";
-const char* password = "password";
+const char* ssid = "Fablab_Torino";
+const char* password = "Fablab.Torino!";
 
 // Configuración de MQTT
-const char* mqtt_server = "IP";
+const char* mqtt_server = "172.26.34.36";
 const char* mqtt_topic_door1 = "Door1_topic";
-const char* mqtt_topic_door2 = "Door2_topic";
-const char* mqtt_topic_door3 = "Door3_topic";
 const char* mqtt_username = "tu_usuario";
 const char* mqtt_password = "tu_contraseña";
 
@@ -22,37 +17,25 @@ PubSubClient client(espClient);
 
 // Variables para almacenar el estado de los LED
 bool ledStateDoor1 = false;
-bool ledStateDoor2 = false;
-bool ledStateDoor3 = false;
 unsigned long ledOnTimeDoor1 = 0;
-unsigned long ledOnTimeDoor2 = 0;
-unsigned long ledOnTimeDoor3 = 0;
-
-// Configuración de la pantalla LCD
-LiquidCrystal lcd(7, 6, 5, 4, 3, 2);
-
-// Variables para el temporizador de mensaje de puerta y LED
-unsigned long startTime = 0;
-const unsigned long displayDuration = 5000; // 5 segundos
-bool doorOpen = false;
 
 // Datos del timbre
 const char* hostname = "your esp-rfid hostname"; // Cambia esto por tu hostname
 
+// Configuración del relé
+const int relayPin = 4; // Pin al que está conectado el relé (ajusta si es necesario)
+unsigned long relayOnTime = 0; // Para gestionar el tiempo de activación del relé
+
 void setup() {
   Serial.begin(9600);
-  lcd.begin(16, 2); // Inicializar la pantalla LCD (16 columnas, 2 filas)
 
   // Conexión a WiFi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Conectando a WiFi...");
-    lcd.print("Conectando a WiFi");
   }
   Serial.println("Conectado a WiFi");
-  lcd.clear();
-  lcd.print("Conectado a WiFi");
 
   // Conexión a MQTT
   client.setServer(mqtt_server, 1883);
@@ -60,14 +43,9 @@ void setup() {
 
   while (!client.connected()) {
     Serial.println("Conectando a MQTT...");
-    lcd.print("Conectando a MQTT");
     if (client.connect("ArduinoClient", mqtt_username, mqtt_password)) {
       Serial.println("Conectado a MQTT");
-      lcd.clear();
-      lcd.print("Conectado a MQTT");
       client.subscribe(mqtt_topic_door1);
-      client.subscribe(mqtt_topic_door2);
-      client.subscribe(mqtt_topic_door3);
     } else {
       Serial.print("Error al conectar: ");
       Serial.print(client.state());
@@ -77,8 +55,8 @@ void setup() {
 
   // Inicializar los pines de los LED
   pinMode(13, OUTPUT);
-  pinMode(12, OUTPUT);
-  pinMode(11, OUTPUT);
+  pinMode(relayPin, OUTPUT); // Configurar el pin del relé como salida
+  digitalWrite(relayPin, LOW); // Asegurarse de que el relé está apagado al inicio
 }
 
 void loop() {
@@ -87,17 +65,14 @@ void loop() {
   }
   client.loop();
 
-  // Controlar los LED según su estado
+  // Controlar el LED de la puerta 1 según su estado
   controlLED(13, ledStateDoor1, ledOnTimeDoor1);
-  controlLED(12, ledStateDoor2, ledOnTimeDoor2);
-  controlLED(11, ledStateDoor3, ledOnTimeDoor3);
 
-  // Mostrar mensaje de puerta abierta en la LCD
-  if (doorOpen && (millis() - startTime >= displayDuration)) {
-    lcd.clear();
-    lcd.print("Door control");
-    doorOpen = false;
-    ledStateDoor1 = ledStateDoor2 = ledStateDoor3 = false; // Apagar los LEDs
+  // Controlar el relé, apagar después de 3 segundos
+  if (millis() - relayOnTime >= 3000 && relayOnTime > 0) { // Después de 3 segundos
+    digitalWrite(relayPin, LOW); // Apagar el relé
+    Serial.println("Relé apagado"); // Imprimir mensaje cuando el relé se apaga
+    relayOnTime = 0; // Resetear el tiempo
   }
 }
 
@@ -110,44 +85,19 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.println();
 
-  // Mostrar el mensaje recibido en la pantalla LCD
-  lcd.clear();
-  lcd.print("Mensaje recibido:");
-  lcd.setCursor(0, 1);
-  for (int i = 0; i < length; i++) {
-    lcd.print((char)payload[i]);
-  }
-
   // Control de los LED basado en el topic del mensaje recibido
   if (strcmp(topic, mqtt_topic_door1) == 0) {
     ledStateDoor1 = true;
     ledOnTimeDoor1 = millis();
-    lcd.clear();
-    lcd.print("Door 1 open");
-    startTime = millis();
-    doorOpen = true;
     sendDoorbellMessage("Door 1"); // Enviar mensaje del timbre
     sendNotificationToPublisher("Door 1 opened"); // Enviar notificación al publicador
-  } else if (strcmp(topic, mqtt_topic_door2) == 0) {
-    ledStateDoor2 = true;
-    ledOnTimeDoor2 = millis();
-    lcd.clear();
-    lcd.print("Door 2 open");
-    startTime = millis();
-    doorOpen = true;
-    sendDoorbellMessage("Door 2"); // Enviar mensaje del timbre
-    sendNotificationToPublisher("Door 2 opened"); // Enviar notificación al publicador
-  } else if (strcmp(topic, mqtt_topic_door3) == 0) {
-    ledStateDoor3 = true;
-    ledOnTimeDoor3 = millis();
-    lcd.clear();
-    lcd.print("Door 3 open");
-    startTime = millis();
-    doorOpen = true;
-    sendDoorbellMessage("Door 3"); // Enviar mensaje del timbre
-    sendNotificationToPublisher("Door 3 opened"); // Enviar notificación al publicador
+
+    // Activar el relé para encender las luces (12V) durante 3 segundos
+    digitalWrite(relayPin, HIGH); // Encender el relé (12V)
+    Serial.println("Relé activado"); // Imprimir mensaje cuando el relé se activa
+    relayOnTime = millis(); // Registrar el tiempo de activación del relé
   } else {
-    ledStateDoor1 = ledStateDoor2 = ledStateDoor3 = false;
+    ledStateDoor1 = false;
   }
 }
 
@@ -189,14 +139,9 @@ void sendNotificationToPublisher(const char* message) {
 void reconnect() {
   while (!client.connected()) {
     Serial.println("Reconectando a MQTT...");
-    lcd.print("Reconectando a MQTT");
     if (client.connect("ArduinoClient", mqtt_username, mqtt_password)) {
       Serial.println("Conectado");
-      lcd.clear();
-      lcd.print("Conectado");
       client.subscribe(mqtt_topic_door1);
-      client.subscribe(mqtt_topic_door2);
-      client.subscribe(mqtt_topic_door3);
     } else {
       Serial.print("Error al reconectar: ");
       Serial.print(client.state());
@@ -206,7 +151,7 @@ void reconnect() {
 }
 
 void controlLED(int ledPin, bool& ledState, unsigned long& ledOnTime) {
-  if (ledState && (millis() - ledOnTime >= displayDuration)) { // Si el LED está encendido y han pasado 5 segundos
+  if (ledState && (millis() - ledOnTime >= 5000)) { // Si el LED está encendido y han pasado 5 segundos
     ledState = false; // Apagar el LED
   }
   digitalWrite(ledPin, ledState);
