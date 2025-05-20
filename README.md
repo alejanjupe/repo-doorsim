@@ -1,10 +1,12 @@
-This Arduino project is responsible for monitoring the opening and closing of the doors. When a door is opened, the system sends a message through an MQTT network, which is received by the Arduino. Upon receiving this message, the Arduino turns on a specific color LED for that door and displays a message on an LCD screen informing about the door opening.
+This project uses Arduino boards connected to WiFi to implement a smart doorbell system. The system consists of a doorbell located at the exterior door that, when pressed, activates a light inside the company. Communication between the two devices is carried out using the MQTT protocol, with Mosquitto as the server.
 
-The project includes:
+System Operation
+Button Press: When the doorbell button is pressed, the exterior Arduino board sends a message via MQTT.
+Message Reception: The Arduino board located inside the company receives this message and activates a relay that turns on a light.
+Notifications: In addition to turning on the light, the system sends notifications to a central system to log the event.
 
-Connecting the Arduino to the local WiFi network.
-Integration with an MQTT server to receive door opening messages.
-Illumination of different color LEDs for each door (green, yellow, red).
-Displaying the door opening messages on an LCD screen.
-Sending notifications to a central system when a door opening is detected.
-In this way, the facility staff can monitor in real-time when the different doors are opened, which allows improving security and access control. Additionally, the system sends notifications to a central system so that they can keep a record of the events.
+Project Components
+Arduino Boards: Two boards, one on the exterior and another on the interior, connected to the WiFi network.
+MQTT: Utilization of an MQTT server for communication between the boards.
+Relay: A relay connected to the interior board that controls the light.
+Control Code: The source code implements the logic for connecting to WiFi, subscribing to MQTT topics, and controlling the light through the relay.
